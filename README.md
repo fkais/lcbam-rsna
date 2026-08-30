@@ -1,70 +1,70 @@
 # LCBAM-RSNA
 
-A reproducible experimental project for pneumonia lesion detection on the RSNA Pneumonia Detection Challenge dataset using YOLOv8n and lightweight attention mechanisms.
+一个基于 YOLOv8n 和轻量注意力机制的 RSNA 肺炎病灶检测可复现实验项目。
 
-> **Project status:** Under reconstruction.  
-> The current repository mainly contains archived legacy experiments. The training pipeline, dataset preparation scripts, and the redesigned lightweight attention module are being reorganized for reproducibility.
-
----
-
-## Overview
-
-This project investigates the effect of attention mechanisms on lightweight object detection for chest X-ray pneumonia lesion detection.
-
-The main experimental models are:
-
-- **YOLOv8n** — baseline detector
-- **YOLOv8n + CBAM** — standard Convolutional Block Attention Module
-- **YOLOv8n + LCBAMv2** — redesigned lightweight attention module
-
-The project is based on the **RSNA Pneumonia Detection Challenge** dataset.
-
-The current goal is not to reproduce the previous experimental pipeline exactly, but to rebuild the project with:
-
-- consistent training configurations;
-- reproducible dataset splits;
-- independent model source code;
-- standardized evaluation;
-- multiple random seeds;
-- efficiency benchmarking.
+> **项目状态：重构中**  
+> 当前仓库主要保存历史实验材料。训练流程、数据准备脚本以及重新设计的轻量注意力模块正在逐步整理，以提高项目的可复现性。
 
 ---
 
-## Repository Status
+## 项目概述
 
-The repository is currently being reorganized.
+本项目研究注意力机制对轻量级胸部 X 光肺炎病灶检测模型的影响。
 
-At this stage, the main available content is:
+主要实验模型包括：
+
+- **YOLOv8n** —— 基线检测模型
+- **YOLOv8n + CBAM** —— 标准卷积块注意力模块
+- **YOLOv8n + LCBAMv2** —— 重新设计的轻量注意力模块
+
+项目基于 **RSNA Pneumonia Detection Challenge** 数据集。
+
+当前目标并不是直接复现以前的实验流程，而是重新构建整个项目，使其具备：
+
+- 统一的训练配置；
+- 可复现的数据集划分；
+- 独立的模型源码；
+- 标准化的评估流程；
+- 多随机种子实验；
+- 模型效率测试。
+
+---
+
+## 仓库当前状态
+
+本仓库目前仍处于整理和重构阶段。
+
+现阶段主要包含：
 
 ```text
 archive/
 └── legacy_experiments/
 ```
 
-The files under `archive/legacy_experiments/` are preserved historical materials from earlier experiments.
+`archive/legacy_experiments/` 中保存的是早期实验产生的历史材料。
 
-They may include:
+其中可能包括：
 
-- previous model configuration files;
-- legacy CBAM / LCBAM implementations;
-- training arguments;
-- experiment metrics;
-- figures and visualization results;
-- other historical experiment files.
+- 旧模型配置文件；
+- 旧 CBAM / LCBAM 实现；
+- 训练参数；
+- 实验指标；
+- 训练曲线和可视化结果；
+- 其他历史实验文件。
 
-These files are retained for reference and experiment traceability.
+这些文件主要用于保存实验记录和追踪项目演变过程。
 
-> **Important:** Legacy experiments should not be considered the final reproducible implementation of this project.
+> **注意：** Legacy 实验不应被视为本项目最终的可复现实现。
 
-Some earlier experiments used inconsistent configurations, and the old LCBAM implementation does not fully match the architecture description used in the early report draft.
+部分早期实验使用的训练配置并不完全一致，并且旧版 LCBAM 实现与早期报告中的结构描述并不完全对应。
 
-Therefore, legacy results will not be used directly as the final experimental conclusion.
+因此，旧实验结果不会直接作为最终实验结论。
 
 ---
 
-## Planned Repository Structure
+## 计划中的项目结构
 
-The project will gradually be reorganized into the following structure:
+项目后续将逐步整理为：
 
 ```text
 lcbam-rsna/
@@ -96,180 +96,190 @@ lcbam-rsna/
 
 ---
 
-## Dataset
+## 数据集
 
-The project uses the **RSNA Pneumonia Detection Challenge** dataset.
+本项目使用 **RSNA Pneumonia Detection Challenge** 数据集。
 
-The original dataset is **not included in this repository**.
+原始数据集不会包含在本 GitHub 仓库中。
 
-The dataset has been converted into a YOLO-style object detection format consisting of:
+数据目前已经转换成 YOLO 目标检测格式，包括：
 
-- chest X-ray images;
-- YOLO-format bounding-box labels;
-- dataset configuration files.
+- 胸部 X 光图像；
+- YOLO 格式边界框标签；
+- 数据集配置文件。
 
-Before the final experiments, the dataset pipeline will be checked for:
+正式实验前将进一步检查：
 
-- image-label consistency;
-- missing or extra annotation files;
-- empty-label validity;
-- fixed train / validation / test splits;
-- positive-case statistics;
-- bounding-box statistics.
+- 图片和标签是否一一对应；
+- 是否存在缺失或多余标签；
+- 空标签是否确实代表正常病例；
+- 固定 train / validation / test 数据划分；
+- 阳性病例数量；
+- bounding box 数量统计。
 
-A reproducible split manifest will also be generated.
+同时会生成固定的数据划分文件：
+
+```text
+split_manifest.csv
+```
+
+用于保证后续实验使用完全相同的数据划分。
 
 ---
 
-## Model Design
+## 模型设计
 
 ### YOLOv8n
 
-YOLOv8n is used as the lightweight baseline detector.
+YOLOv8n 作为本项目的轻量级基线模型。
 
-It provides a reasonable balance between:
+它在以下方面具有较好的平衡：
 
-- detection accuracy;
-- model size;
-- computational cost;
-- deployment efficiency.
+- 检测精度；
+- 模型大小；
+- 计算复杂度；
+- 部署效率。
 
 ### CBAM
 
-CBAM introduces sequential:
+CBAM 依次使用：
 
-1. channel attention;
-2. spatial attention.
+1. 通道注意力；
+2. 空间注意力。
 
-It is used as the standard attention baseline.
+本项目将其作为标准注意力机制对比模型。
 
 ### LCBAMv2
 
-The original experimental LCBAM implementation is archived as a legacy version.
+原来的实验版本 LCBAM 将作为历史版本保存在 archive 中。
 
-A new implementation, temporarily named **LCBAMv2**, is being redesigned.
+新的轻量模块暂时命名为：
 
-The current design direction is:
+**LCBAMv2**
 
-- lightweight channel attention based on an ECA-style 1D convolution;
-- lightweight spatial attention using a smaller dilated convolution;
-- explicit channel initialization;
-- no parameter creation during the first forward pass;
-- full compatibility with model saving and loading;
-- lower attention-module parameter cost than standard CBAM.
+目前的设计方向包括：
 
-The final implementation will only be added after the architecture, formulas, parameter count, and source code are verified to be mutually consistent.
+- 使用类似 ECA 的 1D 卷积实现轻量通道注意力；
+- 使用较小的空洞卷积实现轻量空间注意力；
+- 初始化时明确确定通道数；
+- 不在第一次 `forward()` 时动态创建参数；
+- 完整支持模型保存和重新加载；
+- 参数量低于标准 CBAM。
+
+只有当结构、公式、参数量以及代码实现完全对应之后，LCBAMv2 才会加入正式实验。
 
 ---
 
-## Experimental Plan
+## 实验计划
 
-The final comparison is planned to include:
+正式实验计划比较：
 
-| Model | Seeds | Epochs |
+| 模型 | 随机种子 | Epoch |
 |---|---:|---:|
-| YOLOv8n | 0, 1, 2 | 100 |
-| YOLOv8n + CBAM | 0, 1, 2 | 100 |
-| YOLOv8n + LCBAMv2 | 0, 1, 2 | 100 |
+| YOLOv8n | 0、1、2 | 100 |
+| YOLOv8n + CBAM | 0、1、2 | 100 |
+| YOLOv8n + LCBAMv2 | 0、1、2 | 100 |
 
-The main training settings will be kept consistent across all models.
+所有模型会尽可能保持完全一致的训练配置。
 
-Planned evaluation metrics include:
+计划评估指标包括：
 
 - Precision
 - Recall
 - mAP@0.5
 - mAP@0.5:0.95
-- Parameters
+- 参数量
 - GFLOPs
-- Model size
-- Inference latency
+- 模型大小
+- 单张推理延迟
 - FPS
-- Peak GPU memory
+- 峰值 GPU 显存占用
 
-For multi-seed experiments, detection metrics will be reported as:
+对于多个随机种子的实验结果，将报告：
 
 ```text
-mean ± standard deviation
+平均值 ± 标准差
 ```
 
 ---
 
-## Reproducibility
+## 可复现性
 
-The reconstructed version of this project will aim to provide:
+重构后的项目将尽量提供：
 
-- fixed dataset splits;
-- consistent hyperparameters;
-- explicit random seeds;
-- independent model source code;
-- training scripts;
-- evaluation scripts;
-- benchmark scripts;
-- environment requirements;
-- reproducible commands.
+- 固定的数据集划分；
+- 一致的超参数；
+- 明确的随机种子；
+- 独立的模型源码；
+- 训练脚本；
+- 评估脚本；
+- Benchmark 脚本；
+- 环境依赖；
+- 可复现的运行命令。
 
-The final environment will be documented after the local and cloud GPU environments are fully verified.
+最终 Python、PyTorch、CUDA 和 Ultralytics 环境将在本地及云 GPU 环境验证后确定。
 
 ---
 
-## Legacy Experiments
+## 历史实验
 
-Previous experiments are intentionally preserved under:
+早期实验统一保存在：
 
 ```text
 archive/legacy_experiments/
 ```
 
-They are useful for:
+这些实验主要用于：
 
-- tracking project evolution;
-- comparing historical implementations;
-- preserving original experiment evidence;
-- identifying differences between earlier and reconstructed experiments.
+- 追踪项目发展过程；
+- 对比历史模型实现；
+- 保留早期实验记录；
+- 分析旧实验与新实验之间的差异。
 
-However, they may contain:
+但这些实验可能存在：
 
-- inconsistent batch sizes;
-- incomplete random-seed coverage;
-- legacy source-code dependencies;
-- implementation/report mismatches.
+- Batch size 不完全一致；
+- 随机种子实验不完整；
+- 依赖旧 Python 环境；
+- 代码实现和报告描述不完全一致。
 
-For this reason, archived results should be treated as **historical references only**.
+因此 archive 中的数据应被视为：
 
----
-
-## Current Progress
-
-- [x] RSNA dataset converted to YOLO format
-- [x] Legacy YOLOv8n experiment completed
-- [x] Legacy YOLOv8n + CBAM experiment completed
-- [x] Legacy YOLOv8n + LCBAM experiment completed
-- [x] Legacy experiment files archived
-- [ ] Clean project structure
-- [ ] LCBAMv2 architecture design
-- [ ] LCBAMv2 implementation
-- [ ] Unit tests
-- [ ] Dataset integrity verification
-- [ ] Fixed dataset split manifest
-- [ ] Cloud training pipeline verification
-- [ ] Multi-seed formal experiments
-- [ ] Efficiency benchmark
-- [ ] Technical report
-- [ ] Final reproducible release
+**历史参考结果，而非最终实验结果。**
 
 ---
 
-## Disclaimer
+## 当前进度
 
-This repository is an academic and engineering experiment for medical image object detection.
+- [x] RSNA 数据集转换为 YOLO 格式
+- [x] 完成旧版 YOLOv8n 实验
+- [x] 完成旧版 YOLOv8n + CBAM 实验
+- [x] 完成旧版 YOLOv8n + LCBAM 实验
+- [x] 旧实验文件归档
+- [ ] 整理干净的项目结构
+- [ ] 设计 LCBAMv2
+- [ ] 实现 LCBAMv2
+- [ ] 完成单元测试
+- [ ] 检查数据完整性
+- [ ] 固定数据集划分
+- [ ] 云端训练流程验证
+- [ ] 多随机种子正式实验
+- [ ] 模型效率测试
+- [ ] 完成技术报告
+- [ ] 发布最终可复现版本
 
-It is **not intended for clinical diagnosis or medical decision-making**.
+---
+
+## 声明
+
+本项目仅用于医学影像目标检测相关的学习、研究和工程实验。
+
+本项目 **不用于临床诊断或医疗决策**。
 
 ---
 
 ## License
 
-The source code license will be specified before the first stable release.
+项目源码许可证将在第一个稳定版本发布前确定。
 
-The RSNA dataset is not redistributed by this repository and remains subject to its original dataset license and usage terms.
+RSNA 原始数据不会通过本仓库重新分发，数据使用仍需遵守其原始许可证和相关规定。
