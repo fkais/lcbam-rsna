@@ -24,7 +24,8 @@ def test_yolov8_lcbamv2_complete_forward():
     with torch.inference_mode():
         outputs = model.model(torch.randn(1, 3, 64, 64))
 
-    predictions, feature_maps = outputs
-    assert predictions.shape[0] == 1
-    assert len(feature_maps) == 3
+    predictions, raw_outputs = outputs
 
+    assert predictions.shape[:2] == (1, 5)
+    assert torch.isfinite(predictions).all()
+    assert len(raw_outputs["feats"]) == 3
