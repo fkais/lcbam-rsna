@@ -25,6 +25,16 @@ datasets/
 # Cache
 .cache/
 *.cache
+.coverage
+.coverage.*
+htmlcov/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*~
 
 # OS
 .DS_Store
