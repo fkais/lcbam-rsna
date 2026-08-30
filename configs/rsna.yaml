@@ -1,4 +1,4 @@
-path: E:/meddet/datasets/rsna
+path: E:/paperdata/meddet/datasets/rsna
 train: images/train
 val: images/val
 test: images/test
