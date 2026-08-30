@@ -1,0 +1,2 @@
+pytest==9.1.1
+ultralytics==8.4.135
