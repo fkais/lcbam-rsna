@@ -1,0 +1,35 @@
+# Unified protocol for all final experiments
+
+task: detect
+
+dataset:
+  data: configs/rsna.yaml
+  imgsz: 512
+
+training:
+  epochs: 150
+  patience: 30
+
+  seed: 0
+  deterministic: true
+  pretrained: true
+
+# Must be identical across Baseline / CBAM / LCBAMv2
+fair_comparison:
+  same_dataset_split: true
+  same_image_size: true
+  same_batch_size: true
+  same_optimizer: true
+  same_lr_schedule: true
+  same_augmentation: true
+  same_pretrained_weights: true
+
+evaluation:
+  metrics:
+    - precision
+    - recall
+    - mAP50
+    - mAP50-95
+    - params
+    - flops
+    - latency

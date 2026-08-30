@@ -256,10 +256,10 @@ archive/legacy_experiments/
 - [x] 完成旧版 YOLOv8n + CBAM 实验
 - [x] 完成旧版 YOLOv8n + LCBAM 实验
 - [x] 旧实验文件归档
-- [ ] 整理干净的项目结构
-- [ ] 设计 LCBAMv2
-- [ ] 实现 LCBAMv2
-- [ ] 完成单元测试
+- [x] 整理干净的项目结构
+- [x] 设计 LCBAMv2
+- [x] 实现 LCBAMv2
+- [x] 完成基础单元测试
 - [ ] 检查数据完整性
 - [ ] 固定数据集划分
 - [ ] 云端训练流程验证
