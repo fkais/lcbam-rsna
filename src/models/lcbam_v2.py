@@ -16,6 +16,7 @@ class LCBAMv2(nn.Module):
         kernel_size: Kernel size of the 1D channel interaction.
         dilation: Dilation used in spatial attention.
         gamma_init: Initial residual scaling factor.
+        spatial_kernel: Kernel size of the dilated spatial convolution.
     """
 
     def __init__(
@@ -23,6 +24,7 @@ class LCBAMv2(nn.Module):
         kernel_size: int = 5,
         dilation: int = 3,
         gamma_init: float = 0.0,
+        spatial_kernel: int = 3,
     ):
         super().__init__()
 
@@ -31,6 +33,9 @@ class LCBAMv2(nn.Module):
 
         if dilation < 1:
             raise ValueError("dilation must be >= 1.")
+
+        if spatial_kernel < 1 or spatial_kernel % 2 == 0:
+            raise ValueError("spatial_kernel must be a positive odd integer.")
 
         # -------- Channel Attention --------
         #
@@ -52,12 +57,12 @@ class LCBAMv2(nn.Module):
 
         # -------- Spatial Attention --------
         #
-        # 3x3 with dilation=3 gives an effective 7x7 receptive field.
+        # The default 3x3 with dilation=3 gives an effective 7x7 receptive field.
         self.spatial_conv = nn.Conv2d(
             in_channels=2,
             out_channels=1,
-            kernel_size=3,
-            padding=dilation,
+            kernel_size=spatial_kernel,
+            padding=dilation * (spatial_kernel // 2),
             dilation=dilation,
             bias=False,
         )

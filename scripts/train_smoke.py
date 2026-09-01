@@ -8,7 +8,7 @@ from typing import Sequence
 
 from ultralytics import YOLO
 
-from src.models import build_lcbamv2_yolov8
+from src.models import build_lcbamv2_yolov8, preserve_lcbamv2_model_for_training
 from src.models.yolov8 import load_lcbamv2_pretrained
 
 
@@ -30,7 +30,7 @@ def create_smoke_model(*, model: str, weights: str | None = "yolov8n.pt") -> YOL
             f"Transferred {report.transferred}/{report.target_items} compatible items; "
             f"LCBAMv2 keeps {len(report.new_layer_keys)} newly initialized items."
         )
-    return target
+    return preserve_lcbamv2_model_for_training(target)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

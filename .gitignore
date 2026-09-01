@@ -11,6 +11,8 @@ venv/
 
 # Ultralytics / training outputs
 runs/
+results/optuna/
+results/data_audits/
 
 # Model weights
 *.pt

@@ -1,5 +1,7 @@
 # RSNA validation and smoke-training preparation — TDD evidence
 
+> Historical evidence snapshot (2026-08-30). The environment and known gaps below describe that task at that time and are not the current project state. Read `PROJECT_CONTEXT.md` and the latest `PROJECT_LOG.md` entry for current facts.
+
 ## Source and user journeys
 
 No plan file was supplied. The guarantees were derived from the 2026-08-30 request:

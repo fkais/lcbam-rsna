@@ -1,5 +1,7 @@
 # LCBAMv2 YOLOv8 integration — TDD evidence
 
+> Historical evidence snapshot (2026-08-30). The environment and known gaps below describe that task at that time and are not the current project state. Read `PROJECT_CONTEXT.md` and the latest `PROJECT_LOG.md` entry for current facts.
+
 ## Source and journey
 
 No plan file was supplied. The validation journey was derived from the integration task: as an experiment maintainer, I want the project model YAML to be parsed by Ultralytics into a YOLOv8 model that actually contains LCBAMv2 and completes a forward pass.

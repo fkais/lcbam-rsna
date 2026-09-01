@@ -1,5 +1,18 @@
 # LCBAM-RSNA 开发规则
 
+## Project Context Loading
+
+开始任何项目任务前，按以下顺序读取：
+
+1. `AGENTS.md`
+2. `PROJECT_CONTEXT.md`
+3. `EXPERIMENT_PROTOCOL.md`
+4. `PROJECT_LOG.md`
+
+然后检查当前仓库和相关源码再作决定，不把旧聊天记录当作事实来源。若文档与当前代码或已核验实验产物冲突：先核实真实仓库状态，采用已核验事实，更新过时文档，并在 `PROJECT_LOG.md` 记录纠正。
+
+不得推断未经验证的实验结果，不得把 smoke 指标当作正式性能结果。
+
 ## 项目目标
 
 本仓库用于复现并扩展基于 YOLOv8n 的 RSNA Pneumonia Detection 实验：

@@ -1,18 +1,69 @@
-# Unified protocol for all final experiments
+status: lcbam_structure_search_v1_frozen
+authority: docs/experiments/lcbam_structure_search_v1.md
+scope: LCBAMv2 structure-only Optuna search
 
 task: detect
 
 dataset:
   data: configs/rsna.yaml
   imgsz: 512
+  split_audit_report: results/data_audits/rsna_split_audit_v1.json
+  fraction: 1.0
 
 training:
-  epochs: 150
-  patience: 30
-
+  epochs: 20
+  batch: 4
+  device: '0'
+  workers: 0
+  optimizer: AdamW
+  lr0: 0.002
+  lrf: 0.01
+  momentum: 0.9
+  weight_decay: 0.0005
+  warmup_epochs: 3.0
+  warmup_momentum: 0.8
+  warmup_bias_lr: 0.0
+  patience: 0
   seed: 0
   deterministic: true
-  pretrained: true
+  amp: true
+  cache: false
+  pretrained_weights: yolov8n.pt
+  pretrained_sha256: f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36
+  validation_split: val
+
+augmentation:
+  hsv_h: 0.015
+  hsv_s: 0.7
+  hsv_v: 0.4
+  degrees: 0.0
+  translate: 0.1
+  scale: 0.5
+  shear: 0.0
+  perspective: 0.0
+  flipud: 0.0
+  fliplr: 0.5
+  bgr: 0.0
+  mosaic: 1.0
+  close_mosaic: 10
+  mixup: 0.0
+  cutmix: 0.0
+  copy_paste: 0.0
+
+structure_search:
+  channel_kernel: [3, 5, 7]
+  spatial_kernel: [3, 5, 7]
+  insert_position: [p3, p4, p5]
+  dilation: 3
+  gamma_init: 0.0
+  num_lcbam: 1
+  trial_budget: 20
+  objective: metrics/mAP50-95(B)
+  direction: maximize
+  sampler: TPESampler
+  sampler_seed: 0
+  n_startup_trials: 10
+  n_ei_candidates: 24
 
 # Must be identical across Baseline / CBAM / LCBAMv2
 fair_comparison:

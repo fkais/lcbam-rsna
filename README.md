@@ -2,8 +2,8 @@
 
 一个基于 YOLOv8n 和轻量注意力机制的 RSNA 肺炎病灶检测可复现实验项目。
 
-> **项目状态：重构中**  
-> 当前仓库主要保存历史实验材料。训练流程、数据准备脚本以及重新设计的轻量注意力模块正在逐步整理，以提高项目的可复现性。
+> **项目状态：正式实验前验证**
+> 当前仓库同时保留历史实验材料和已测试的 LCBAMv2 + YOLOv8n 实现。普通 smoke 训练与独立 Optuna/TPE 结构搜索入口均已具备；正式长训练和正式贝叶斯优化尚未开始。
 
 ---
 
@@ -32,13 +32,17 @@
 
 ## 仓库当前状态
 
-本仓库目前仍处于整理和重构阶段。
+本仓库目前仍处于整理和正式实验前验证阶段。
 
 现阶段主要包含：
 
 ```text
-archive/
-└── legacy_experiments/
+configs/          # 数据与三种 LCBAMv2 插入位置 YAML
+scripts/          # 数据验证和独立 smoke 训练入口
+src/models/       # LCBAMv2、YOLOv8 注册及兼容权重迁移
+src/optimize_lcbam.py
+tests/
+archive/legacy_experiments/
 ```
 
 `archive/legacy_experiments/` 中保存的是早期实验产生的历史材料。
@@ -62,9 +66,9 @@ archive/
 
 ---
 
-## 计划中的项目结构
+## 当前项目结构
 
-项目后续将逐步整理为：
+核心可执行部分已经整理为：
 
 ```text
 lcbam-rsna/
@@ -74,17 +78,16 @@ lcbam-rsna/
 ├── .gitignore
 │
 ├── configs/
-│   ├── dataset/
+│   ├── rsna.yaml
 │   └── models/
 │
 ├── src/
 │   ├── models/
-│   ├── train.py
-│   ├── evaluate.py
-│   └── benchmark.py
+│   └── optimize_lcbam.py
 │
 ├── scripts/
-│   └── prepare_rsna.py
+│   ├── train_smoke.py
+│   └── validate_rsna.py
 │
 ├── tests/
 ├── results/
@@ -108,7 +111,16 @@ lcbam-rsna/
 - YOLO 格式边界框标签；
 - 数据集配置文件。
 
-正式实验前将进一步检查：
+本地数据完整性与固定 train / validation / test 路径已经通过项目验证脚本检查；正式搜索仍应保留同一份划分，不得重新随机划分。数据不会提交到 Git。
+
+可复核命令：
+
+```powershell
+.venv\Scripts\python.exe scripts\validate_rsna.py --data configs\rsna.yaml
+.venv\Scripts\python.exe scripts\audit_rsna_split.py --data configs\rsna.yaml --metadata-csv E:\paperdata\meddet\raw\stage_2_train_labels.csv --patient-id-column patientId
+```
+
+数据治理仍应持续记录：
 
 - 图片和标签是否一一对应；
 - 是否存在缺失或多余标签；
@@ -164,9 +176,61 @@ CBAM 依次使用：
 - 初始化时明确确定通道数；
 - 不在第一次 `forward()` 时动态创建参数；
 - 完整支持模型保存和重新加载；
-- 参数量低于标准 CBAM。
+- 以低于标准 CBAM 的参数开销为设计目标；统一插入条件下的最终参数量对比仍待正式 benchmark。
 
-只有当结构、公式、参数量以及代码实现完全对应之后，LCBAMv2 才会加入正式实验。
+当前实现已经完成结构、注册、模型构建、forward、预训练权重迁移和 CUDA smoke 验证，但尚未形成正式精度结论。
+
+真实构造参数为：
+
+- `kernel_size`：ECA 风格通道注意力的一维卷积核；
+- `dilation`：空间分支空洞率，当前搜索固定为 3；
+- `gamma_init`：残差门控初始值，当前搜索固定为 0；
+- `spatial_kernel`：空间分支二维卷积核，支持正奇数，结构搜索限定为 3、5、7。
+
+本模块没有通道压缩瓶颈，因此不存在可忠实映射的 `reduction_ratio`。为避免制造无效维度，第一阶段不搜索该参数；`num_lcbam` 同样固定为 1。
+
+## 运行入口
+
+### 普通训练链路
+
+现有训练链路保持独立，不经过 Optuna。下面的命令只抽取 2% train 数据并运行 1 epoch，用于 smoke 验证，不用于报告精度：
+
+```powershell
+.venv\Scripts\python.exe scripts\train_smoke.py --model lcbamv2 --data configs\rsna.yaml --epochs 1 --imgsz 512 --batch 4 --device 0 --workers 0 --seed 0 --fraction 0.02
+```
+
+### Optuna/TPE 结构搜索
+
+搜索入口使用 seeded `TPESampler`、`direction="maximize"`，objective 为训练返回的 validation `metrics/mAP50-95(B)`。每个 trial 的训练条件保持一致，并显式使用 `val=True, split="val"`；test split 不参与搜索或模型选择。
+
+```powershell
+.venv\Scripts\python.exe -m src.optimize_lcbam --formal --trials 20 --epochs 20 --imgsz 512 --batch 4 --device 0 --workers 0 --seed 0 --sampler-seed 0 --study-name lcbam_structure_search_v1 --storage sqlite:///results/optuna/lcbam_structure_search_v1.db --data configs/rsna.yaml --split-audit-report results/data_audits/rsna_split_audit_v1.json --weights yolov8n.pt --fraction 1.0 --optimizer AdamW --lr0 0.002 --lrf 0.01 --momentum 0.9 --weight-decay 0.0005 --warmup-epochs 3.0 --warmup-momentum 0.8 --warmup-bias-lr 0.0 --patience 0 --deterministic --amp --no-cache --output-root runs/optuna --results-root results/optuna
+```
+
+以上是已冻结的 v1 正式入口，但本次只记录、没有执行。完整固定条件、split audit 结果、test policy 和 resume 限制见 `docs/experiments/lcbam_structure_search_v1.md`。
+
+第一阶段搜索空间：
+
+| 参数 | 候选 | 真实含义 |
+|---|---|---|
+| `channel_kernel` | 3、5、7 | LCBAMv2 通道分支 Conv1d kernel |
+| `spatial_kernel` | 3、5、7 | LCBAMv2 空间分支 dilated Conv2d kernel |
+| `insert_position` | `p3`、`p4`、`p5` | 分别位于 backbone 的 P3/C2f 后、P4/C2f 后、P5/SPPF 后 |
+
+每个 trial 写入独立目录：
+
+```text
+runs/optuna/<study-name>/trial_NNN/
+```
+
+持久化摘要写入：
+
+```text
+results/optuna/<study-name>/trials.csv
+results/optuna/<study-name>/best_params.yaml
+```
+
+SQLite 文件位置由 `--storage` 决定。中断后使用完全相同的 `--study-name`、`--storage` 和固定条件再次执行；正式 v1 的 `--trials 20` 表示整个 study 的总 attempted-trial 预算，resume 只运行剩余数量，不会追加或扩展预算。协议不一致会拒绝 resume，已有 trial 目录不会被覆盖。当前代码会绑定 data/model YAML、关键模型/搜索源码和预训练权重的 SHA-256；预训练权重必须在创建 study 前已存在于本地，避免首次自动下载导致身份漂移。该内容指纹修复已通过自动化测试，但现有真实 GPU smoke 早于最终指纹版本，尚未用最终版本重新 smoke。这里的 resume 是 study 历史续跑，不是恢复某个中断 trial 的 checkpoint，也不承诺跨进程重启后逐 trial TPE 随机序列完全相同。
 
 ---
 
@@ -174,11 +238,11 @@ CBAM 依次使用：
 
 正式实验计划比较：
 
-| 模型 | 随机种子 | Epoch |
-|---|---:|---:|
-| YOLOv8n | 0、1、2 | 100 |
-| YOLOv8n + CBAM | 0、1、2 | 100 |
-| YOLOv8n + LCBAMv2 | 0、1、2 | 100 |
+| 模型 | 正式 seed / epoch 状态 |
+|---|---|
+| YOLOv8n | 待协议冻结 |
+| YOLOv8n + CBAM | 待协议冻结 |
+| YOLOv8n + LCBAMv2 | 待协议冻结 |
 
 所有模型会尽可能保持完全一致的训练配置。
 
@@ -260,8 +324,14 @@ archive/legacy_experiments/
 - [x] 设计 LCBAMv2
 - [x] 实现 LCBAMv2
 - [x] 完成基础单元测试
-- [ ] 检查数据完整性
-- [ ] 固定数据集划分
+- [x] 检查本地数据完整性
+- [x] 验证固定数据集划分路径
+- [x] 完成 LCBAMv2 + YOLOv8 CUDA smoke
+- [x] 实现 Optuna/TPE 结构搜索框架
+- [x] 完成 P3/P4/P5 build 与 forward 测试
+- [x] 冻结正式 Optuna 搜索协议
+- [ ] 执行正式 Bayesian/TPE optimization
+- [ ] 确定最佳结构参数
 - [ ] 云端训练流程验证
 - [ ] 多随机种子正式实验
 - [ ] 模型效率测试

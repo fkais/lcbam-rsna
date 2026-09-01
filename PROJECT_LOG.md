@@ -2,19 +2,23 @@
 
 本文件只记录项目实际上发生的事情：当前状态、重要历史、已确认结论、待验证假设、已否定方案、实验记录和下一步。`AGENTS.md` 负责规定“应该怎么开发”，本文件负责提供跨任务持续记忆，避免重复工作或把旧状态误当成当前状态。
 
-## 当前状态（2026-08-31 00:35 +08:00）
+## 当前状态（2026-09-01 19:26 +08:00）
 
-- 当前阶段：正式实验前的代码、数据与 CUDA smoke 验证均已完成，正在进行阶段性 Git 收尾。
-- LCBAMv2 模块已实现；YOLOv8 注册与集成、自定义模型 YAML 和兼容预训练权重迁移均已完成。插入位置仍为 backbone SPPF 后，本阶段未修改 LCBAMv2 结构。
-- RSNA 固定数据路径已确认为 `E:/paperdata/meddet/datasets/rsna`，不重新随机划分；唯一孤立的 0 字节空标签已处理。
+- 当前阶段：独立 Optuna/TPE 结构搜索框架、测试和最小 CUDA smoke 已完成；正式贝叶斯优化尚未开始。
+- LCBAMv2 模块已实现；YOLOv8 注册与集成、自定义模型 YAML 和兼容预训练权重迁移均已完成。结构搜索支持三个经 build/forward 验证的插入位置：P3/C2f 后、P4/C2f 后、P5/SPPF 后。
+- LCBAMv2 的真实可搜索参数为 ECA 风格通道卷积核 `channel_kernel=[3,5,7]`、空间卷积核 `spatial_kernel=[3,5,7]` 和 `insert_position=[p3,p4,p5]`。模块没有 reduction bottleneck，因此未虚构 `reduction_ratio`；`dilation=3`、`gamma_init=0`、`num_lcbam=1` 固定。
+- RSNA 固定数据路径已确认为 `E:/paperdata/meddet/datasets/rsna`，不重新随机划分；patient/content-level split audit 已完成并为 PASS，跨 split basename/patient/exact-content overlap 均为 0。
 - RSNA 数据验证已重新执行并返回 `PASS`：train/val/test 均无孤立标签、无未标注的受支持图片、无无效标签行。
 - Windows smoke training 入口默认使用 `workers=0`，并默认以 `fraction=0.02` 抽取 2% 训练数据；二者仅用于轻量链路验证，不是正式实验超参数。
 - CUDA 环境已配置成功：PyTorch 2.12.1+cu132 可见 NVIDIA GeForce RTX 3050 Laptop GPU。
 - Baseline CUDA smoke 已完成：`runs/detect/train-3`，1 epoch，`workers=0`、`fraction=0.02`，产出完整结果表和 checkpoint。
 - LCBAMv2 CUDA smoke 已完成：`runs/detect/train-4`，1 epoch，`workers=0`、`fraction=0.02`，产出完整结果表和 checkpoint。
-- 完整 pytest 已重新执行：`13 passed in 5.00s`。
-- 正式训练、多随机种子对比、性能评估和效率 benchmark 均为 **NOT STARTED**。Smoke training 指标只证明训练链路可运行，不得用于判断模型优劣。
-- 下一步：固定四组模型的正式公平对比配置后，才可开始正式实验。
+- 已建立 `PROJECT_CONTEXT.md` 和 `EXPERIMENT_PROTOCOL.md`，并在 `AGENTS.md` 固定新会话的上下文读取顺序；实验协议当前优先于 README 和未冻结机器配置。
+- 完整 pytest 已重新执行：`63 passed in 7.39s`；上一轮源码/脚本覆盖率记录为 89%，本次未重跑 coverage。
+- Optuna CUDA smoke 已真实完成：1 trial、1 epoch、`fraction=0.02`、`workers=0`，trial 0 状态 COMPLETE，使用 validation 指标；输出目录为 `runs/optuna/lcbam_optuna_smoke_20260901_v2/trial_000`。该 run 早于最终 `definition_identities` 指纹修复，只证明当时端到端搜索链路；最终指纹逻辑目前仅有自动化测试证据。
+- `lcbam_structure_search_v1` 的 20-trial structure-only 协议已经冻结；formal preflight 对真实全量 SHA-256 manifest 返回 PASS，正式搜索仍为 **NOT STARTED**。
+- 正式 Bayesian/TPE optimization、最佳参数确定、最优参数完整训练、多 seed 验证、test set 最终评估和效率 benchmark 均为 **NOT STARTED**。
+- 下一步：在单独授权的任务中按冻结命令启动 20-trial 正式搜索；不得在 v1 中改训练参数/空间，也不得接触 test。CBAM / legacy LCBAM 核验与 primary comparison 冻结仍是后续独立工作。
 
 ## 重要历史
 
@@ -35,9 +39,9 @@
 
 ## 已确认结论
 
-- LCBAMv2 已完成 Ultralytics 注册、模型 YAML、项目构建入口和完整 forward 验证，插入位置为 YOLOv8n backbone 的 SPPF 后。
+- LCBAMv2 原默认配置位于 YOLOv8n backbone 的 P5/SPPF 后；结构搜索另提供 P3/C2f 后和 P4/C2f 后 YAML，三个位置均已完成注册、模型构建和完整 forward 验证。
 - RSNA 真实本地路径为 `E:/paperdata/meddet/datasets/rsna`；当前 train/val/test 划分固定，不重新随机划分。
-- Baseline 使用 Ultralytics 官方 YOLOv8n 预训练权重；LCBAMv2 通过 SPPF 后层索引偏移映射迁移形状兼容权重。
+- Baseline 使用 Ultralytics 官方 YOLOv8n 预训练权重；LCBAMv2 会检测 P3/P4/P5 的真实注意力层索引，再对后续层偏移映射并迁移形状兼容权重。
 - 正式训练、多随机种子实验、性能评估和效率 benchmark 均尚未开始，因此当前没有模型优劣或性能提升结论。
 
 ## 待验证假设
@@ -271,8 +275,121 @@
 - 本次清理不会改变源码、数据集、配置、测试或成功训练结果。
 - 当前 smoke 成功不等同于正式实验完成，也不构成 LCBAMv2 优于 Baseline 的证据。
 
+### 2026-09-01 14:08 +08:00 — Optuna/TPE LCBAMv2 结构搜索框架
+
+#### 任务、范围与改造前状态
+
+- 目标是在不破坏普通 LCBAMv2 + YOLOv8n 训练链路的前提下，新增独立 Optuna/TPE 结构搜索、SQLite 持久化、resume、trial 隔离、CSV/YAML 摘要、测试和最小 smoke。
+- 本次读取并遵守根目录 `AGENTS.md` 和本日志；主 Agent 检查真实仓库后，使用 Architecture、Implementation、Audit 三个子 Agent 分阶段分析、实现和独立审计，最终代码、测试和 smoke 均由主 Agent 复核。
+- 改造前 LCBAMv2 构造参数为 `kernel_size`、`dilation`、`gamma_init`；模块是 ECA 风格通道 Conv1d，没有 reduction bottleneck。已有模型只在 P5/SPPF 后插入一个模块，Optuna 未安装，完整基线测试为 13 passed。
+- 本次未修改数据划分，未开始正式 20～30 trial 搜索或长训练。
+
+#### 设计和实现
+
+- 在 `LCBAMv2` 构造函数末尾新增 `spatial_kernel`，默认值 3 保持原行为；只接受正奇数，并以 `dilation * (kernel // 2)` 保持空间尺寸。核心通道/空间/残差门控设计未改变。
+- 新增 P3 与 P4 静态 YAML；P3/P4/P5 的注意力层实际索引分别为 5/7/10。Optuna trial 只复制对应静态 YAML 到自身目录并替换真实 kernel 参数，没有引入动态插件系统或大规模 Ultralytics 重构。
+- 新增 `src/optimize_lcbam.py` 独立入口，使用 seeded `TPESampler` 和 `direction=maximize`。搜索空间为 `channel_kernel=[3,5,7]`、`spatial_kernel=[3,5,7]`、`insert_position=[p3,p4,p5]`；`dilation=3`、`gamma_init=0`、`num_lcbam=1` 固定。
+- objective 显式调用 `model.train(..., val=True, split="val")`，只从返回的 validation `results_dict` 读取 precision、recall、mAP50、mAP50-95，并以 mAP50-95 作为返回值。没有调用 test split，也没有读取 test 指标。
+- 数据守卫要求 train/val/test 三个非空且规范化后的路径互异；该守卫用于阻止明显 split alias，但不替代正式实验前的 patient/content-level manifest 审计。
+- 每个 trial 原子占用 `runs/optuna/<study>/trial_NNN`，目录已存在时直接失败，Ultralytics `project` 使用绝对路径。SQLite study 使用 `load_if_exists=True`；恢复时核对搜索空间、训练条件、依赖版本，以及 data/model YAML、关键源码和权重的 SHA-256，设置或实现内容不一致则拒绝续跑。预训练权重必须在 study 创建前已存在于本地。
+- 每个 trial 记录参数、四项 validation 指标、实际 output_dir、state 和 error；每次 trial 后刷新 `trials.csv`，存在 COMPLETE trial 时刷新 `best_params.yaml`。大型 checkpoint 仍由 `.gitignore` 排除。
+- Python、NumPy、PyTorch CPU/CUDA、cuDNN deterministic/benchmark、Ultralytics training seed 和 Optuna sampler seed 均显式处理。不同 trial 固定相同训练 seed；`n_jobs=1` 避免单 GPU 并发造成不可比较。
+- pruning 未接入：当前 Ultralytics 链路低成本只能稳定取得训练完成后的 validation metrics，为避免扩大改造范围，本阶段不实现逐 epoch pruning。
+
+#### 审计发现和修正
+
+- 独立审计发现：只在 `model.train(pretrained=False)` 前手工迁移权重会使 Ultralytics Trainer 从 YAML 重建模型，从而丢弃已经初始化和迁移的自定义模型。这是既有 smoke 入口也受影响的真实 trainer-boundary 问题。
+- 新增 `preserve_lcbamv2_model_for_training()`，让当前 Ultralytics 8.4.135 Trainer 使用已经构建/迁移的自定义模型；普通 `scripts/train_smoke.py` 和 Optuna 共用该边界修正，并增加回归测试。
+- 首次探索性 Optuna smoke 还暴露相对 `project` 会被 Ultralytics 嵌套写入 `runs/detect/runs/optuna/...`。该次运行按 trial 隔离要求标为 **invalid**，不作为最终 smoke；代码改为绝对 project，并添加先 RED 后 GREEN 的路径测试。
+- 最终审计指出仅绑定路径会允许同路径 YAML/源码被修改后继续旧 study；新增内容指纹测试先复现该问题，再将 data/model YAML、关键源码和预训练权重 SHA-256 纳入协议。缺失本地权重会在 study 创建前 fail-fast，避免自动下载前后的 identity 漂移。
+- 异常策略只把 CUDA OOM 和明确的不可比较训练条件包装为单 trial 失败；模型构建、YAML、数据路径和缺失指标错误不被宽泛 try/except 吞掉。自动 batch 变更会使 trial 失败。
+
+#### 主 Agent 最终验证
+
+- `.venv\Scripts\python.exe -m pytest -v`：`63 passed in 7.71s`。
+- `.venv\Scripts\python.exe -m pytest --cov=scripts --cov=src --cov-report=term-missing -q`：`63 passed in 9.61s`，总覆盖率 89%，`src/optimize_lcbam.py` 覆盖率 88%。
+- `.venv\Scripts\python.exe -m src.optimize_lcbam --help`：退出码 0，所需 CLI 参数和 `--n-trials` 别名可见。
+- P3/P4/P5 独立 build/forward：注意力层索引分别为 5/7/10，输入 `(1,3,64,64)` 的 eval prediction 均为 `(1,5,84)`。
+- 最终真实 CUDA smoke：study `lcbam_optuna_smoke_20260901_v2`，1 trial、1 epoch、imgsz 512、batch 4、workers 0、seed/sampler_seed 0、fraction 0.02，RTX 3050 Laptop GPU，退出码 0。
+- 该 smoke 的 trial 0 采样 `channel_kernel=5`、`spatial_kernel=7`、`insert_position=p5`，validation mAP50-95 为 `0.00011168922747715054`，状态 COMPLETE；真实输出、CSV 中 output_dir 和 `args.yaml` project/name 一致。这个数值仅为链路证据，不构成最佳参数或性能结论。
+- smoke 只使用 validation 作为 objective；没有运行 test set 最终评估。
+
+#### 尚未完成
+
+- 正式 Bayesian/TPE optimization：**NOT STARTED**。
+- 最佳参数确定与最优结构完整训练：**NOT STARTED**。
+- 多 seed 验证：**NOT STARTED**。
+- test set 最终统一评估：**NOT STARTED**。
+- 正式搜索前仍需冻结 epochs、batch、optimizer/augmentation 等全部非搜索条件，并记录 patient/content-level split manifest 审计证据。
+
+### 2026-09-01 18:49 +08:00 — 长期上下文与实验协议基线
+
+#### 做了什么与为什么
+
+- 为降低新会话、Agent 切换和租用 GPU 后的事实漂移，新增 `PROJECT_CONTEXT.md` 和 `EXPERIMENT_PROTOCOL.md`，分别承载已核验事实与正式实验规则。
+- 在 `AGENTS.md` 加入 `AGENTS.md -> PROJECT_CONTEXT.md -> EXPERIMENT_PROTOCOL.md -> PROJECT_LOG.md` 的固定读取顺序；未把 AI 上下文规则大规模塞入 README。
+- 最小更新 README、`configs/experiment_protocol.yaml` 和历史 testing evidence：删除参数量优于 CBAM 的未验证断言，取消未冻结的 100 epoch / seed 表，明确机器配置仍为 draft，并标注旧 evidence 的时间快照属性。
+- 实际调用一个独立只读 Document / Experiment Audit 子 Agent；主 Agent 复核其发现并完成修订，没有调用 Implementation / Architecture 子 Agent。
+
+#### 核实与纠正
+
+- 活跃仓库确认为 `D:/project/lcbam-rsna`；`E:/paperdata/lcbam-rsna` 是更早副本，数据集仍位于 `E:/paperdata/meddet/datasets/rsna`。
+- 实际 `labels/train` 为 18,677，不是任务背景中的 18,678。images 目录总数较大主要来自 `.npy` 辅助文件；当前 `.png` 与 `.txt` 数量逐 split 相等，阴性样本由合法空标签表示。
+- LCBAMv2 构造参数为 `kernel_size/dilation/gamma_init/spatial_kernel`；Optuna 字段 `channel_kernel` 映射到 `kernel_size`，没有 `reduction_ratio`。P3/P4/P5 索引 5/7/10 与源码、YAML 和测试一致。
+- 审计发现 v2 CUDA smoke 的 SQLite 协议没有后来加入的 `definition_identities`。因此纠正此前可能造成的顺序暗示：v2 只验证较早链路，最终内容指纹修复仅经自动化测试，尚未重新做真实 GPU smoke。
+- 更早的相对输出路径 smoke 虽然机器字段仍为 COMPLETE/best，但研究有效性为 invalid；未改写原始产物，只在 result/run 目录增加 `INVALID_RUN.md` 并在长期文档中明确禁用。
+- primary comparison 定为 baseline / CBAM / LCBAMv2；legacy LCBAM 是必须核验的历史复现轨道，只有经协议修订后才可升级为同一主结果表的第四组。BO-LCBAMv2 是结构优化组，不是新模块。
+
+#### 验证与尚未完成
+
+- `.venv\Scripts\python.exe -m pytest -v`：最终复跑 `63 passed in 7.39s`。
+- `git diff --check` 初稿检查无空白错误，仅有仓库正常的 LF-to-CRLF 提示；最终检查结果见本次交付汇报。
+- 未启动训练、正式 Optuna、正式 baseline，未修改 LCBAMv2 核心设计、数据划分或正式超参数。
+- 尚未完成 patient/content-level leakage 审计、正式训练参数冻结、CBAM/legacy 实现核验、最终指纹版本 GPU smoke、租用 GPU 计划、正式多 seed 与 test 评估。
+
 ## 下一步
 
 1. 核验 CBAM 和原始 LCBAM 的实现、插入位置及复现配置。
-2. 固定 Baseline、CBAM、原始 LCBAM 与 LCBAMv2 的正式公平对比配置。
-3. 配置冻结并完成训练前复核后，再单独启动正式长训练；当前任务不得启动。
+2. 冻结 Optuna 结构搜索的全部非搜索条件，同时固定 Baseline、CBAM、LCBAMv2 三组 primary comparison；单独核验原始 LCBAM 历史复现轨道。
+3. 配置冻结和 split manifest 复核通过后，再单独启动正式 20～30 trial 搜索；当前任务未启动。
+4. 选择正式 study 的最佳 trial 后再做完整训练、多 seed 验证，并只在所有模型选择完成后统一评估 test set。
+
+### 2026-09-01 19:26 +08:00 — LCBAMv2 structure search v1 最终冻结
+
+#### 任务、修改前状态与多 Agent 审计
+
+- 目标是在不启动正式搜索、不使用 test 选择模型的前提下，完成正式 Optuna structure-search 的训练条件冻结、RSNA patient/content manifest、运行保护、测试和协议文档。
+- 用户要求的文件实际位于活跃仓库 `D:/project/lcbam-rsna`；`E:/paperdata/lcbam-rsna` 是缺少当前 `src/configs/tests` 的旧 checkout。三名只读子 Agent 分别完成 Experiment Design、Data Audit 和独立科研审计，主 Agent 统一实现与验证。
+- 修改前 objective 仍使用 `optimizer="auto"` 和大量 Ultralytics 隐式默认；`--trials` resume 会每次追加预算；正式入口不要求 patient/content audit；output/results/storage 与完整训练条件未全部进入 study 指纹。
+
+#### 冻结决定与实现
+
+- v1 只搜索 `channel_kernel=[3,5,7]`、`spatial_kernel=[3,5,7]`、`insert_position=[p3,p4,p5]`；固定 `dilation=3`、`gamma_init=0`、`num_lcbam=1`，不引入不存在的 `reduction_ratio`。
+- 冻结 20 attempted trials、20 epochs、imgsz 512、batch 4、device 0、workers 0、fraction 1.0、seed/sampler seed 0、deterministic true、AMP true、cache false、patience 0。
+- 根据本机 Ultralytics 8.4.135 的真实 `optimizer=auto` 决策，改为显式 AdamW：lr0 0.002、lrf 0.01、beta1/momentum 0.9、weight decay 0.0005；显式冻结 warmup、loss、nbs 和全部 augmentation 参数，消除未来默认漂移。
+- 本地 `yolov8n.pt` SHA-256 为 `f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36`。P3/P4/P5 正式迁移必须精确为 319/358 项和 3 个新 LCBAMv2 参数项。
+- 增加 formal precondition：要求 PASS audit、data YAML/manifest identity 与当前数据逐文件 path/size/SHA-256 一致；formal 与 smoke 名称分离；stale RUNNING trial fail closed；`--trials 20` 改为整个 study 的总预算。
+- SQLite storage、绝对 output/results root、sampler 完整设置、formal 类型、trial budget、全部训练条件、源码/YAML/权重/audit identity 均进入 study protocol。trial build/train/metric 异常会持久化到 trial error。
+
+#### RSNA 真实 split audit
+
+- 新增 `scripts/audit_rsna_split.py`，生成本地忽略的 `results/data_audits/rsna_split_audit_v1.json` 和 26,683 行全量 SHA-256 manifest。
+- train/val/test PNG 数为 18,677/5,336/2,670；positive/nonempty 为 4,198/1,207/607；legal negative/empty 为 14,479/4,129/2,063；当前 no-txt background 均为 0。缺 txt 的图片在工具和测试中只计为合法背景候选，不判错。
+- 所有当前 PNG basename 均能映射原始 metadata `patientId`；跨 split basename/patient/exact-content overlap 均为 0，结果 PASS。
+- train 内存在一个 exact duplicate group（2 个阴性 patientId，1 个 excess），不构成跨 split leakage，本任务未改划分。原始 metadata 的 26,684 个 patientId 中，已知阴性 `6227d915-6ca0-430d-8905-34a61e29e074` 不在当前 26,683 个冻结转换样本中；不重新加入或随机划分。
+
+#### TDD、检查与实际结果
+
+- 初始 RED：目标测试因缺少 `scripts.audit_rsna_split` 收集失败；首次真实 CLI 还暴露 direct-script import 失败，随后做最小兼容修复。
+- 新增 overlap/alias/negative/artifact/intra-split duplicate 测试，补 formal current-manifest guard、显式 objective 参数和 resume total-budget 测试；P3/P4/P5 与原 smoke 回归继续通过。
+- 预最终 `.venv\Scripts\python.exe -m pytest -v`：73 passed in 9.03s。
+- coverage：73 passed，TOTAL 86%，`scripts/audit_rsna_split.py` 82%，`src/optimize_lcbam.py` 86%。
+- 真实全量数据 audit：PASS。只执行 formal preflight、未 create study、未运行 trial：`FORMAL_PREFLIGHT=PASS`，protocol SHA-256 `f2e3afb93422ca821206379d7b57897120af6f8ee86cd34d7e3efe8370acc611`。
+- 最终 `.venv\Scripts\python.exe -m pytest -v`：74 passed in 9.31s；`git diff --check/stat/status` 结果以本次最终交付汇报为准。
+
+#### 文档、限制与下一步
+
+- 新增 `docs/experiments/lcbam_structure_search_v1.md` 和本轮 TDD evidence；同步 README、PROJECT_CONTEXT、EXPERIMENT_PROTOCOL 与机器可读 config。
+- Test 在 architecture/hyperparameter search 中保持 untouched；只有最终结构和训练协议全部选择、冻结并完成后，才允许单次最终 test evaluation。
+- TPE 允许重复离散结构；报告必须区分 attempted trials 和 unique structures。SQLite 不持久化 sampler RNG state，因此跨进程 resume 不声称与 uninterrupted suggestion sequence 完全相同，restart boundary 必须记录。
+- 本次没有启动正式 Optuna、长训练或 test evaluation，没有产生性能或最佳结构结论。下一步只能在单独授权任务中执行冻结的 20-trial 命令。

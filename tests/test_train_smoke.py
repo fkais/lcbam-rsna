@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 import torch
 from ultralytics import YOLO
 
@@ -97,9 +98,70 @@ def test_lcbamv2_pretrained_migration_shifts_downstream_layer_indices():
     assert target.model.state_dict()["model.10.gamma"].item() == 0.0
 
 
+def test_lcbamv2_pretrained_migration_detects_non_p5_attention_index():
+    source = YOLO("yolov8n.yaml")
+    target = build_lcbamv2_yolov8(
+        ROOT / "configs" / "models" / "yolov8n-lcbamv2-p3.yaml"
+    )
+    source_key = "model.5.conv.weight"
+    target_key = "model.6.conv.weight"
+    source.model.state_dict()[source_key].fill_(0.375)
+
+    report = load_lcbamv2_pretrained(target, source)
+
+    assert torch.all(target.model.state_dict()[target_key] == 0.375)
+    assert report.new_layer_keys
+    assert all(key.startswith("model.5.") for key in report.new_layer_keys)
+
+
 def test_smoke_models_can_be_built_without_downloading_weights():
     baseline = train_smoke.create_smoke_model(model="baseline", weights=None)
     lcbamv2 = train_smoke.create_smoke_model(model="lcbamv2", weights=None)
 
     assert isinstance(baseline, YOLO)
     assert any(module.__class__.__name__ == "LCBAMv2" for module in lcbamv2.model.modules())
+
+
+def test_lcbamv2_smoke_preserves_initialized_model_at_trainer_boundary(monkeypatch):
+    model = train_smoke.create_smoke_model(model="lcbamv2", weights=None)
+    attention = next(
+        module
+        for module in model.model.modules()
+        if module.__class__.__name__ == "LCBAMv2"
+    )
+    attention.channel_conv.weight.data.fill_(0.625)
+    captured_weights = []
+
+    class StopBeforeTraining(RuntimeError):
+        pass
+
+    class FakeTrainer:
+        def __init__(self, overrides, _callbacks):
+            self.overrides = overrides
+
+        def get_model(self, *, weights, cfg):
+            captured_weights.append(weights)
+            return weights
+
+        def train(self):
+            raise StopBeforeTraining
+
+    monkeypatch.setattr(
+        "ultralytics.engine.model.checks.check_pip_update_available",
+        lambda: None,
+    )
+
+    with pytest.raises(StopBeforeTraining):
+        model.train(
+            trainer=FakeTrainer,
+            data="unused.yaml",
+            pretrained=True,
+        )
+
+    assert len(captured_weights) == 1
+    captured_attention = next(
+        module
+        for module in captured_weights[0].modules()
+        if module.__class__.__name__ == "LCBAMv2"
+    )
+    assert torch.all(captured_attention.channel_conv.weight == 0.625)
